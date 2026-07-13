@@ -284,6 +284,19 @@ const DOMAINS = ["justcbdstore.com","thevaporsupplier.com","thevaporshoppeusa.co
   "fistdistro.com","fullsend.com","vapesocietysupplies.com","vapedepotusa.com","alternativepods.com",
   "zuluvape.com","giantvapes.com","kangerwholesaleusa.com","mmschainportal.com","vaperanger.com","myqwin.com"];
 const TEAM = ["amanda","seanl","charlesevans","darrin"];
+const DOMAINS_STORAGE_KEY = 'activeMonitoring_customDomains';
+
+// Restore any domains added in earlier sessions on this browser (see registerNewDomain / saveCustomDomains).
+// Wrapped in try/catch since localStorage isn't available in every embedding context (e.g. a sandboxed preview) —
+// in that case new domains simply won't persist across refresh, but the tool still works fine within a session.
+try{
+  const saved = JSON.parse(localStorage.getItem(DOMAINS_STORAGE_KEY) || '[]');
+  saved.forEach(d => { if(d && !DOMAINS.some(x=>x.toLowerCase()===d.toLowerCase())) DOMAINS.push(d); });
+}catch(e){ /* localStorage unavailable — carry on without persistence */ }
+
+function saveCustomDomains(){
+  try{ localStorage.setItem(DOMAINS_STORAGE_KEY, JSON.stringify(DOMAINS)); }catch(e){ /* ignore */ }
+}
 
 let rows = [];
 let rowSeq = 0;
@@ -514,6 +527,7 @@ document.getElementById('scorecardToggle').addEventListener('change', e=>{
 function registerNewDomain(domain){
   if(!DOMAINS.some(d => d.toLowerCase() === domain)){
     DOMAINS.push(domain);
+    saveCustomDomains();
     renderLog(); // rebuilds the datalist so the new domain autocompletes on future rows
     return true;
   }
