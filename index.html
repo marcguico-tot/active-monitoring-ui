@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style> 
+<style>
   :root{
     --bg:#15181b;
     --panel:#1d2124;
@@ -105,7 +105,7 @@
   .dur-pair input{width:52px;flex-shrink:0;font-family:var(--mono);}
 
   .status-toggle{display:flex;gap:6px;}
-  .status-btn{flex:1;font-family:var(--mono);font-size:12px;border-radius:5px;border:1px solid var(--border);
+  .status-btn{flex:1;font-family:var(--mono);font-size:12px;padding:7px 8px;border-radius:5px;border:1px solid var(--border);
     background:var(--panel);color:var(--text-dim);cursor:pointer;text-align:center;padding-top: 9px;padding-bottom: 8px;}
   .status-btn.ok.active{background:var(--ok-bg);border-color:var(--ok-border);color:var(--ok);}
   .status-btn.attn.active{background:var(--attn-bg);border-color:var(--attn-border);color:var(--attn);}
@@ -239,7 +239,6 @@
           <div style="display:flex;align-items:center;gap:10px;">
             <span id="syncStatus" style="font-family:var(--mono);font-size:11px;color:var(--text-faint);"></span>
             <button class="btn small" id="syncSheetBtn" style="display:none;">Sync from Sheet</button>
-            <button class="btn small ghost" id="addScoreRow" style="display:none;">+ Row</button>
           </div>
         </div>
         <div class="panel-body" id="scorecardBody" style="display:none;">
@@ -375,12 +374,10 @@ function renderLog(){
   const wrap = document.getElementById('log');
   wrap.innerHTML = '';
 
-  if(!document.getElementById('domainList')){
-    const dl = document.createElement('datalist');
-    dl.id = 'domainList';
-    dl.innerHTML = datalistOptions();
-    wrap.appendChild(dl);
-  }
+  const dl = document.createElement('datalist');
+  dl.id = 'domainList';
+  dl.innerHTML = datalistOptions();
+  wrap.appendChild(dl);
 
   rows.forEach((r, idx)=>{
     const rowWrap = document.createElement('div');
@@ -492,6 +489,14 @@ function onFieldChange(e){
   const r = rows.find(x=>x.id===id);
   if(!r) return;
   r[field] = e.currentTarget.value;
+
+  // once they've finished typing a domain (change/blur, not every keystroke),
+  // remember it so it shows up as a suggestion on future rows
+  if(field === 'domain' && e.type === 'change'){
+    const val = e.currentTarget.value.trim().toLowerCase();
+    if(val && registerNewDomain(val)) return; // registerNewDomain already re-rendered (and refreshed the preview)
+  }
+
   renderPreview();
 }
 
@@ -502,11 +507,18 @@ document.getElementById('addCustomBtn').onclick = ()=> addRow('custom');
 document.getElementById('scorecardToggle').addEventListener('change', e=>{
   const on = e.target.checked;
   document.getElementById('scorecardBody').style.display = on ? 'block' : 'none';
-  document.getElementById('addScoreRow').style.display = on ? 'inline-block' : 'none';
   document.getElementById('syncSheetBtn').style.display = on ? 'inline-block' : 'none';
   if(on && scoreRows.length === 0 && APPS_SCRIPT_URL) syncFromSheet();
 });
-document.getElementById('addScoreRow').onclick = ()=> addScoreRow();
+
+function registerNewDomain(domain){
+  if(!DOMAINS.some(d => d.toLowerCase() === domain)){
+    DOMAINS.push(domain);
+    renderLog(); // rebuilds the datalist so the new domain autocompletes on future rows
+    return true;
+  }
+  return false;
+}
 
 function syncFromSheet(){
   const statusEl = document.getElementById('syncStatus');
@@ -565,10 +577,6 @@ function syncFromSheet(){
 
 document.getElementById('syncSheetBtn').addEventListener('click', syncFromSheet);
 
-function addScoreRow(){
-  scoreRows.push({id: 'sc'+(++scoreSeq), domain:'', orders:'', issues:'', variance:'', highSev:''});
-  renderScoreTable();
-}
 function removeScoreRow(id){
   scoreRows = scoreRows.filter(r=>r.id!==id);
   renderScoreTable();
