@@ -5,6 +5,7 @@
 <title>Active Monitoring — Report Builder</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -96,8 +97,38 @@
   .entry-remove{margin-left:auto;background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:16px;line-height:1;padding:2px 6px;border-radius:4px;}
   .entry-remove:hover{color:var(--attn);background:var(--attn-bg);}
 
-  .entry-grid{display:grid;grid-template-columns:1.5fr .55fr .55fr .8fr .9fr;gap:8px;margin-bottom:10px;}
-  @media (max-width:1250px){.entry-grid{grid-template-columns:1fr 1fr;} }
+  .entry-grid{
+    display:grid;
+    grid-template-columns: minmax(170px,1.5fr) minmax(95px,.55fr) minmax(95px,.55fr) minmax(120px,.8fr) minmax(150px,.9fr);
+    grid-template-areas: "domain start end duration status";
+    gap:8px;margin-bottom:10px;
+  }
+  .field-domain{grid-area:domain;}
+  .field-start{grid-area:start;}
+  .field-end{grid-area:end;}
+  .field-duration{grid-area:duration;}
+  .field-status{grid-area:status;}
+  .field-description{grid-column:1/-1;}
+
+  /* laptop widths: domain gets its own full-width row, the rest share a row of four */
+  @media (max-width:1250px){
+    .entry-grid{
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-areas:
+        "domain domain domain domain"
+        "start end duration status";
+    }
+  }
+  /* narrow / mobile: stack further so nothing gets crushed below a legible width */
+  @media (max-width:640px){
+    .entry-grid{
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "domain domain"
+        "start end"
+        "duration status";
+    }
+  }
   .range-pair{display:flex;align-items:center;gap:4px;}
   .range-pair span{color:var(--text-faint);font-family:var(--mono);}
   .range-pair input{font-family:var(--mono);}
@@ -412,14 +443,14 @@ function renderLog(){
     let gridHtml = '<div class="entry-grid">';
 
     if(r.type === 'store'){
-      gridHtml += '<div class="field"><label>Domain</label><input list="domainList" data-field="domain" data-id="'+r.id+'" value="'+r.domain+'" placeholder="e.g. giantvapes.com"></div>';
-      gridHtml += '<div class="field"><label>Range start</label><input data-field="rangeStart" data-id="'+r.id+'" value="'+r.rangeStart+'" placeholder="151270"></div>';
-      gridHtml += '<div class="field"><label>Range end</label><input data-field="rangeEnd" data-id="'+r.id+'" value="'+r.rangeEnd+'" placeholder="151301"></div>';
+      gridHtml += '<div class="field field-domain"><label>Domain</label><input list="domainList" data-field="domain" data-id="'+r.id+'" value="'+r.domain+'" placeholder="e.g. giantvapes.com"></div>';
+      gridHtml += '<div class="field field-start"><label>Range start</label><input data-field="rangeStart" data-id="'+r.id+'" value="'+r.rangeStart+'" placeholder="151270"></div>';
+      gridHtml += '<div class="field field-end"><label>Range end</label><input data-field="rangeEnd" data-id="'+r.id+'" value="'+r.rangeEnd+'" placeholder="151301"></div>';
     } else {
-      gridHtml += '<div class="field" style="grid-column:span 3;"><label>Description</label><input data-field="label" data-id="'+r.id+'" value="'+r.label+'" placeholder="e.g. No Vape Ranger Alerts on the Monitoring column"></div>';
+      gridHtml += '<div class="field field-description"><label>Description</label><input data-field="label" data-id="'+r.id+'" value="'+r.label+'" placeholder="e.g. No Vape Ranger Alerts on the Monitoring column"></div>';
     }
 
-    gridHtml += '<div class="field"><label>Duration</label><div class="dur-pair">' +
+    gridHtml += '<div class="field field-duration"><label>Duration</label><div class="dur-pair">' +
       '<input data-field="duration" data-id="'+r.id+'" value="'+r.duration+'" placeholder="3">' +
       '<select data-field="durationUnit" data-id="'+r.id+'">' +
         '<option value="min"'+(r.durationUnit==='min'?' selected':'')+'>min</option>' +
@@ -427,7 +458,7 @@ function renderLog(){
         '<option value="hr"'+(r.durationUnit==='hr'?' selected':'')+'>hr</option>' +
       '</select></div></div>';
 
-    gridHtml += '<div class="field"><label>Status</label><div class="status-toggle">' +
+    gridHtml += '<div class="field field-status"><label>Status</label><div class="status-toggle">' +
       '<div class="status-btn ok '+(r.status==='ok'?'active':'')+'" data-status="ok" data-id="'+r.id+'">👍 OK</div>' +
       '<div class="status-btn attn '+(r.status==='attn'?'active':'')+'" data-status="attn" data-id="'+r.id+'">‼️ Attn</div>' +
       '</div></div>';
