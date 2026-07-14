@@ -4,8 +4,11 @@
 <meta charset="UTF-8">
 <title>Active Monitoring — Report Builder</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -109,6 +112,9 @@
   .field-duration{grid-area:duration;}
   .field-status{grid-area:status;}
   .field-description{grid-column:1/-1;}
+  .dash-link-wrap{margin-top:5px;min-height:15px;}
+  .dash-link{font-family:var(--mono);font-size:11px;color:var(--brass);text-decoration:none;display:inline-flex;align-items:center;gap:3px;}
+  .dash-link:hover{text-decoration:underline;}
 
   /* laptop widths: domain gets its own full-width row, the rest share a row of four */
   @media (max-width:1250px){
@@ -317,6 +323,32 @@ const DOMAINS = ["justcbdstore.com","thevaporsupplier.com","thevaporshoppeusa.co
 const TEAM = ["amanda","seanl","charlesevans","darrin","milner"];
 const DOMAINS_STORAGE_KEY = 'activeMonitoring_customDomains';
 
+// Direct links to each store's orders dashboard (Shopify admin / WooCommerce wp-admin / BigCommerce manage)
+// so agents can jump straight there instead of hunting through login pages.
+const DOMAIN_DASHBOARDS = {
+  'justcbdstore.com': 'https://admin.shopify.com/store/just-cbd-store/orders',
+  'thevaporsupplier.com': 'https://admin.shopify.com/store/b2bvapetest/orders',
+  'thevaporshoppeusa.com': 'https://admin.shopify.com/store/the-vapor-shoppe-usa/orders',
+  'bigdvapor.net': 'https://admin.shopify.com/store/big-d-vapor/orders',
+  'fistdistro.com': 'https://admin.shopify.com/store/fistdistro/orders',
+  'fullsend.com': 'https://admin.shopify.com/store/full-send-pouches/orders',
+  'vapesocietysupplies.com': 'https://vapesocietysupplies.com/wp-admin/edit.php?post_type=shop_order',
+  'vapedepotusa.com': 'https://vapedepotusa.com/wp-admin/admin.php?page=wc-orders',
+  'alternativepods.com': 'https://store-t8rs8uxm5v.mybigcommerce.com/manage/orders',
+  'zuluvape.com': 'https://store-iyk7zv0kzc.mybigcommerce.com/manage/orders',
+  'giantvapes.com': 'https://admin.shopify.com/store/giantvapes/orders',
+  'kangerwholesaleusa.com': 'https://store-s62e2h8.mybigcommerce.com/manage/orders',
+  'mmschainportal.com': 'https://admin.shopify.com/store/mmsvr/orders',
+  'vaperanger.com': 'https://store-hqim8tz8ly.mybigcommerce.com/manage/orders',
+};
+
+function dashLinkHtml(domain){
+  const key = (domain || '').trim().toLowerCase();
+  const url = DOMAIN_DASHBOARDS[key];
+  if(!url) return '';
+  return '<a href="'+url+'" target="_blank" rel="noopener noreferrer" class="dash-link">Open orders dashboard ↗</a>';
+}
+
 // Restore any domains added in earlier sessions on this browser (see registerNewDomain / saveCustomDomains).
 // Wrapped in try/catch since localStorage isn't available in every embedding context (e.g. a sandboxed preview) —
 // in that case new domains simply won't persist across refresh, but the tool still works fine within a session.
@@ -443,7 +475,8 @@ function renderLog(){
     let gridHtml = '<div class="entry-grid">';
 
     if(r.type === 'store'){
-      gridHtml += '<div class="field field-domain"><label>Domain</label><input list="domainList" data-field="domain" data-id="'+r.id+'" value="'+r.domain+'" placeholder="e.g. giantvapes.com"></div>';
+      gridHtml += '<div class="field field-domain"><label>Domain</label><input list="domainList" data-field="domain" data-id="'+r.id+'" value="'+r.domain+'" placeholder="e.g. giantvapes.com">' +
+        '<div class="dash-link-wrap" id="dashlink-'+r.id+'">'+dashLinkHtml(r.domain)+'</div></div>';
       gridHtml += '<div class="field field-start"><label>Range start</label><input data-field="rangeStart" data-id="'+r.id+'" value="'+r.rangeStart+'" placeholder="151270"></div>';
       gridHtml += '<div class="field field-end"><label>Range end</label><input data-field="rangeEnd" data-id="'+r.id+'" value="'+r.rangeEnd+'" placeholder="151301"></div>';
     } else {
@@ -533,6 +566,11 @@ function onFieldChange(e){
   const r = rows.find(x=>x.id===id);
   if(!r) return;
   r[field] = e.currentTarget.value;
+
+  if(field === 'domain'){
+    const linkEl = document.getElementById('dashlink-'+id);
+    if(linkEl) linkEl.innerHTML = dashLinkHtml(r.domain);
+  }
 
   // once they've finished typing a domain (change/blur, not every keystroke),
   // remember it so it shows up as a suggestion on future rows
