@@ -636,6 +636,7 @@ function buildReportText(){
   const attnCount = rows.filter(r=>r.type==='store' && r.status==='attn').length;
 
   const activeMentions = Object.keys(mentionState).filter(k=>mentionState[k]).map(n=>'@'+n).join(' ');
+  const reporter = document.getElementById('reporter').value;
   const date = document.getElementById('dateChecked').value;
   const dateFmt = date ? new Date(date+'T00:00:00').toLocaleDateString('en-US',{month:'long', day:'numeric'}) : '';
   const shift = document.getElementById('shift').value;
@@ -645,7 +646,7 @@ function buildReportText(){
   let summaryLine = 'Active Monitoring: '+okCount+'/'+totalStores+' Clients Ok';
   if(attnCount>0) summaryLine += ', '+':bangbang: '.repeat(1).trim()+' '+attnCount+' Require Attention';
   lines.push(summaryLine);
-  lines.push('Orders Checked: '+dateFmt+' ('+shift+')');
+  lines.push('Orders Checked: '+dateFmt+' ('+shift+') by @'+reporter);
   lines.push('');
 
   rows.forEach(r=>{
