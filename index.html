@@ -205,7 +205,10 @@
       <h1>Active Monitoring — Report Builder</h1>
       <div class="sub">Log each store check as you go — the Mattermost-ready report builds itself on the right.</div>
     </div>
-    <div class="status-pill" id="statusPill">0/0 clients ok</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="btn small ghost" id="newReportBtn">Start new report</button>
+      <div class="status-pill" id="statusPill">0/0 clients ok</div>
+    </div>
   </div>
 
   <div class="meta-grid">
@@ -308,7 +311,7 @@
 
   </div>
 
-  <div class="footer-note">Nothing here is sent anywhere automatically — copy the report and post it yourself.</div>
+  <div class="footer-note">Nothing here is sent anywhere automatically — copy the report and post it yourself. Your progress autosaves to this browser, so an accidental close won't lose it.</div>
 </div>
 
 <script>
@@ -359,6 +362,78 @@ try{
 
 function saveCustomDomains(){
   try{ localStorage.setItem(DOMAINS_STORAGE_KEY, JSON.stringify(DOMAINS)); }catch(e){ /* ignore */ }
+}
+
+// ---------- draft autosave (survives an accidental tab/browser close) ----------
+const DRAFT_STORAGE_KEY = 'activeMonitoring_draft';
+let draftSaveTimer = null;
+
+function saveDraft(){
+  // small debounce so rapid typing doesn't hammer localStorage on every keystroke
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(()=>{
+    try{
+      const draft = {
+        version: 1,
+        savedAt: new Date().toISOString(),
+        meta: {
+          reporter: document.getElementById('reporter').value,
+          dateChecked: document.getElementById('dateChecked').value,
+          shift: document.getElementById('shift').value,
+          timePosted: document.getElementById('timePosted').value,
+          trelloLink: document.getElementById('trelloLink').value,
+          sheetLink: document.getElementById('sheetLink').value,
+          scorecardOn: document.getElementById('scorecardToggle').checked
+        },
+        mentionState: mentionState,
+        rows: rows,
+        rowSeq: rowSeq,
+        scoreRows: scoreRows,
+        scoreSeq: scoreSeq
+      };
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    }catch(e){ /* localStorage unavailable — draft just won't persist */ }
+  }, 250);
+}
+
+function loadDraft(){
+  try{
+    const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+    if(!raw) return false;
+    const draft = JSON.parse(raw);
+    if(!draft || !Array.isArray(draft.rows)) return false;
+
+    document.getElementById('reporter').value = draft.meta.reporter || 'amanda';
+    document.getElementById('dateChecked').value = draft.meta.dateChecked || document.getElementById('dateChecked').value;
+    document.getElementById('shift').value = draft.meta.shift || 'Afternoon';
+    document.getElementById('timePosted').value = draft.meta.timePosted || document.getElementById('timePosted').value;
+    document.getElementById('trelloLink').value = draft.meta.trelloLink || '';
+    document.getElementById('sheetLink').value = draft.meta.sheetLink || '';
+
+    mentionState = Object.assign({}, mentionState, draft.mentionState || {});
+    rows = draft.rows || [];
+    rowSeq = draft.rowSeq || rows.length;
+    scoreRows = draft.scoreRows || [];
+    scoreSeq = draft.scoreSeq || scoreRows.length;
+
+    renderMentionChips();
+
+    if(draft.meta.scorecardOn){
+      const cb = document.getElementById('scorecardToggle');
+      cb.checked = true;
+      document.getElementById('scorecardBody').style.display = 'block';
+      document.getElementById('syncSheetBtn').style.display = 'inline-block';
+      renderScoreTable();
+    }
+
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
+function clearDraft(){
+  try{ localStorage.removeItem(DRAFT_STORAGE_KEY); }catch(e){ /* ignore */ }
 }
 
 let rows = [];
@@ -590,7 +665,11 @@ document.getElementById('scorecardToggle').addEventListener('change', e=>{
   const on = e.target.checked;
   document.getElementById('scorecardBody').style.display = on ? 'block' : 'none';
   document.getElementById('syncSheetBtn').style.display = on ? 'inline-block' : 'none';
-  if(on && scoreRows.length === 0 && APPS_SCRIPT_URL) syncFromSheet();
+  if(on){
+    renderScoreTable(); // reflect whatever's already in scoreRows, including restored drafts
+    if(scoreRows.length === 0 && APPS_SCRIPT_URL) syncFromSheet();
+  }
+  saveDraft();
 });
 
 function registerNewDomain(domain){
@@ -692,6 +771,7 @@ function renderScoreTable(){
   tbody.querySelectorAll('[data-scremove]').forEach(el=>{
     el.addEventListener('click', e=> removeScoreRow(e.currentTarget.dataset.scremove));
   });
+  saveDraft();
 }
 
 // ---------- preview / output generation ----------
@@ -771,6 +851,8 @@ function renderPreview(){
   const attnCount = rows.filter(r=>r.type==='store' && r.status==='attn').length;
   const pill = document.getElementById('statusPill');
   pill.innerHTML = '<b class="n-ok">'+okCount+'/'+totalStores+'</b> ok' + (attnCount>0 ? ' &nbsp;·&nbsp; <b class="n-attn">'+attnCount+'</b> attention' : '');
+
+  saveDraft();
 }
 
 ['reporter','dateChecked','shift','timePosted','trelloLink','sheetLink'].forEach(id=>{
@@ -831,17 +913,36 @@ document.getElementById('sendBtn').addEventListener('click', ()=>{
   });
 });
 
-addRow('store');
-addRow('store');
-rows[0].domain = 'giantvapes.com';
-rows[0].rangeStart = '151270'; rows[0].rangeEnd = '151301';
-rows[0].duration = '3'; rows[0].durationUnit = 'mins';
-rows[1].domain = 'zuluvape.com';
-rows[1].rangeStart = '404759'; rows[1].rangeEnd = '404788';
-rows[1].duration = '3'; rows[1].durationUnit = 'mins';
-rows[1].status = 'attn';
-rows[1].notes = 'All orders not pulled up in HQ but is not calculating taxes';
+if(!loadDraft()){
+  // no saved draft on this browser — seed with a couple of examples so first-time users see the format
+  addRow('store');
+  addRow('store');
+  rows[0].domain = 'giantvapes.com';
+  rows[0].rangeStart = '151270'; rows[0].rangeEnd = '151301';
+  rows[0].duration = '3'; rows[0].durationUnit = 'mins';
+  rows[1].domain = 'zuluvape.com';
+  rows[1].rangeStart = '404759'; rows[1].rangeEnd = '404788';
+  rows[1].duration = '3'; rows[1].durationUnit = 'mins';
+  rows[1].status = 'attn';
+  rows[1].notes = 'All orders not pulled up in HQ but is not calculating taxes';
+}
 renderLog();
+
+document.getElementById('newReportBtn').addEventListener('click', ()=>{
+  if(!confirm('Start a new report?\n\nThis clears everything currently in the form (store checks, scorecard, links). This can\'t be undone.')) return;
+  clearDraft();
+  rows = [];
+  rowSeq = 0;
+  scoreRows = [];
+  scoreSeq = 0;
+  document.getElementById('trelloLink').value = '';
+  document.getElementById('sheetLink').value = '';
+  document.getElementById('scorecardToggle').checked = false;
+  document.getElementById('scorecardBody').style.display = 'none';
+  document.getElementById('syncSheetBtn').style.display = 'none';
+  renderScoreTable();
+  renderLog();
+});
 </script>
 </body>
 </html>
